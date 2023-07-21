@@ -1,0 +1,5 @@
+include_directories("." "backends")
+file(GLOB SOURCES_imgui "backends/*.cpp" "*.cpp")
+add_library(imgui ${SOURCES_imgui})
+target_include_directories(imgui PUBLIC "." "backends")
+target_link_libraries(imgui PUBLIC)
