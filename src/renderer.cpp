@@ -3,6 +3,8 @@
 
 namespace gravitysim {
 
+void Renderer::InitPipeline() {
+}
 
 
 } // namespace gravitysim
