@@ -75,7 +75,7 @@ int main(int, char**) {
       
       float elapsed;
       timer.Tick([&]() {
-        elapsed = timer.GetElapsedSeconds();
+        elapsed = static_cast<float>(timer.GetElapsedSeconds());
       });
       
       auto kb = camera.m_keyboard->GetState();
@@ -156,6 +156,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         return 0;
     // queue resize
     renderer_ptr->set_size(static_cast<UINT>(LOWORD(lParam)), static_cast<UINT>(HIWORD(lParam)));
+    camera_ptr->set_size(static_cast<UINT>(LOWORD(lParam)), static_cast<UINT>(HIWORD(lParam)));
     return 0;
   case WM_SYSCOMMAND:
     if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu

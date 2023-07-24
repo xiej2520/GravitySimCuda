@@ -2,6 +2,8 @@
 
 #include <d3d11.h>
 
+#include "GeometricPrimitive.h"
+
 namespace gravitysim {
 
 using namespace DirectX;
@@ -286,6 +288,8 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
         XMVectorGetX(camera.get_pos()), XMVectorGetY(camera.get_pos()), XMVectorGetZ(camera.get_pos()),
         XMVectorGetX(camera.get_tgt()), XMVectorGetY(camera.get_tgt()), XMVectorGetZ(camera.get_tgt())
     );
+    
+    ImGui::Text("Yaw: %.3f, Pitch: %.3f, Roll: %.3f", camera.get_yaw(), camera.get_pitch(), camera.get_roll());
 
     ImGui::End();
   }
@@ -349,6 +353,15 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
 
 
   device_context->Draw(vertex_count, 0);
+  
+  auto sphere = GeometricPrimitive::CreateSphere(device_context.Get());
+  auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get());
+  
+  XMMATRIX sphere_trans = XMMatrixTranslation(4, 4, 4);
+  XMMATRIX geosphere_trans = XMMatrixTranslation(4, 0, 4);
+  
+  sphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
+  geosphere->Draw(geosphere_trans, camera.get_view(), camera.get_proj(), Colors::Blue);
 
   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
