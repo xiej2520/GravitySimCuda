@@ -87,7 +87,8 @@ int main(int, char**) {
       auto mouse = camera.m_mouse->GetState();
       m_mouseButtons.Update(mouse);
       
-      camera.UpdateCamera(m_keys, m_mouseButtons, mouse, elapsed);
+      ImGuiIO &io = ImGui::GetIO();
+      camera.UpdateCamera(m_keys, m_mouseButtons, io.WantCaptureMouse, mouse, elapsed);
       m_keys.Reset();
       m_mouseButtons.Reset();
 

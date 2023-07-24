@@ -108,6 +108,26 @@ bool Renderer::CreateDeviceD3D(HWND hWnd) {
     return false;
 
   CreateRenderTarget();
+
+  D3D11_TEXTURE2D_DESC depth_stencil_desc;
+  depth_stencil_desc.Width     = 2000;
+  depth_stencil_desc.Height    = 2000;
+  depth_stencil_desc.MipLevels = 1;
+  depth_stencil_desc.ArraySize = 1;
+  depth_stencil_desc.Format    = DXGI_FORMAT_D24_UNORM_S8_UINT;
+  depth_stencil_desc.SampleDesc.Count   = 1;
+  depth_stencil_desc.SampleDesc.Quality = 0;
+  depth_stencil_desc.Usage          = D3D11_USAGE_DEFAULT;
+  depth_stencil_desc.BindFlags      = D3D11_BIND_DEPTH_STENCIL;
+  depth_stencil_desc.CPUAccessFlags = 0; 
+  depth_stencil_desc.MiscFlags      = 0;
+
+  device->CreateTexture2D(&depth_stencil_desc, NULL, depth_stencil_buf.ReleaseAndGetAddressOf());
+  device->CreateDepthStencilView(depth_stencil_buf.Get(), NULL, depth_stencil_view.ReleaseAndGetAddressOf());
+  
+  device_context->OMSetRenderTargets(1, main_render_tgtview.GetAddressOf(), depth_stencil_view.Get());
+
+
   return true;
 }
 
@@ -314,9 +334,11 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
       opts.clear_color.y * opts.clear_color.w,
       opts.clear_color.z * opts.clear_color.w, opts.clear_color.w};
   device_context->OMSetRenderTargets(1, main_render_tgtview.GetAddressOf(),
-                                     nullptr);
+                                     depth_stencil_view.Get());
   device_context->ClearRenderTargetView(main_render_tgtview.Get(),
                                         clear_color_with_alpha);
+
+  device_context->ClearDepthStencilView(depth_stencil_view.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
   RECT winRect;
   GetClientRect(hwnd, &winRect);
@@ -362,6 +384,12 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
   
   sphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
   geosphere->Draw(geosphere_trans, camera.get_view(), camera.get_proj(), Colors::Blue);
+  for (int i=0; i<100; i++) {
+    for (int j=0; j<100; j++) {
+      XMMATRIX sphere_trans = XMMatrixTranslation(i, j, 10);
+      sphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
+    }
+  }
 
   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 

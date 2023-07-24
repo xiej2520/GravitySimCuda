@@ -38,8 +38,8 @@ float normalize_rot(float val) {
 }
 
 void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
-                  Mouse::ButtonStateTracker &m_mouseButtons, Mouse::State &mouse,
-                  float elapsed) {
+                  Mouse::ButtonStateTracker &m_mouseButtons, bool capture_mouse,
+                  Mouse::State &mouse, float elapsed) {
 
   float move_left_right = 0.0f;
   float move_back_forward = 0.0f;
@@ -84,7 +84,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
     cam_pitch = normalize_rot(cam_pitch + mouse_speed * (-mouse.x * sin(cam_roll) + mouse.y * cos(cam_roll)));
   }
   
-  float roll_speed = 5.0f * elapsed;
+  float roll_speed = 2.0f * elapsed;
   
   if (m_keys.pressed.Q) {
     cam_roll -= roll_speed;
@@ -94,19 +94,19 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
   }
   cam_roll = normalize_rot(cam_roll);
   
-  if (mouse.leftButton) {
-    m_mouse->SetMode(Mouse::MODE_RELATIVE);
+  if (!capture_mouse) {
+    if (mouse.leftButton) {
+      m_mouse->SetMode(Mouse::MODE_RELATIVE);
+    }
   }
 
   cam_rot = XMMatrixRotationRollPitchYaw(cam_pitch, cam_yaw, cam_roll);
-  cam_tgt = XMVector3TransformCoord(DefaultForward, cam_rot);
-  cam_tgt = XMVector3Normalize(cam_tgt);
+  cam_tgt = XMVector3Normalize(XMVector3TransformCoord(DefaultForward, cam_rot));
+  cam_tgt = cam_pos + cam_tgt;
 
   cam_right = XMVector3TransformCoord(DefaultRight, cam_rot);
   cam_forward = XMVector3TransformCoord(DefaultForward, cam_rot);
   cam_up = XMVector3Cross(cam_forward, cam_right);
-
-  cam_tgt = cam_pos + cam_tgt;
 
   cam_view = XMMatrixLookAtLH(cam_pos, cam_tgt, cam_up);
   

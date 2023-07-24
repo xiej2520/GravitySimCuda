@@ -31,6 +31,10 @@ class Renderer {
   ComPtr<IDXGISwapChain>          swap_chain;
   UINT                            resize_width = 0, resize_height = 0;
   ComPtr<ID3D11RenderTargetView>  main_render_tgtview;
+  
+  // Depth
+  ComPtr<ID3D11DepthStencilView> depth_stencil_view;
+  ComPtr<ID3D11Texture2D> depth_stencil_buf;
 
   // shaders
   ComPtr<ID3DBlob> vs_blob_ptr, ps_blob_ptr, error_blob;

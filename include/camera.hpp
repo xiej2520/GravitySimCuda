@@ -60,6 +60,7 @@ public:
 
   void UpdateCamera(DirectX::Keyboard::KeyboardStateTracker &m_keys,
                     DirectX::Mouse::ButtonStateTracker &m_mouseButtons,
+                    bool capture_mouse,
                     DirectX::Mouse::State &mouse,
                     float elapsed);
 };
