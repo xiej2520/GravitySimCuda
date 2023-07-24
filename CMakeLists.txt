@@ -22,7 +22,8 @@ set_target_properties(gravity_sim_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 add_subdirectory(imgui)
 add_subdirectory(DirectXMath)
-target_link_libraries(gravity_sim_cuda imgui d3d12.lib)
+add_subdirectory(${CMAKE_SOURCE_DIR}/DirectXTK ${CMAKE_BINARY_DIR}/bin/CMake/DirectXTK)
+target_link_libraries(gravity_sim_cuda PRIVATE imgui d3d12.lib DirectXTK)
 
 
 # cmake -DCMAKE_CUDA_ARCHITECTURES=75 -B build

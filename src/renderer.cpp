@@ -197,13 +197,20 @@ void Renderer::CreateShaders() {
   assert(SUCCEEDED(hr));
 }
 
-float vertex_data_array[] = {
-    0.0f,  0.5f,  0.0f, // point at top
-    0.5f,  -0.5f, 0.0f, // point at bottom-right
-    -0.5f, -0.5f, 0.0f, // point at bottom-left
-};
-
 void Renderer::LoadVertexBuffer() {
+  /*
+  float vertex_data_array[] = {
+      0.0f,  0.5f,  0.0f, // point at top
+      0.5f,  -0.5f, 0.0f, // point at bottom-right
+      -0.5f, -0.5f, 0.0f, // point at bottom-left
+  };
+  */
+  float vertex_data_array[] = {
+    -0.5f, -0.5f, 0.5,
+    -0.5f, 0.5f, 0.5f,
+    0.5f, 0.5f, 0.5f
+  };
+
   /*** load mesh data into vertex buffer **/
   D3D11_BUFFER_DESC vertex_buff_descr = {};
   vertex_buff_descr.ByteWidth = sizeof(vertex_data_array);
@@ -314,6 +321,25 @@ void Renderer::RenderFrame(RenderOptions &opts) {
                                      &vertex_stride, &vertex_offset);
   device_context->VSSetShader(vertex_shader_ptr.Get(), NULL, 0);
   device_context->PSSetShader(pixel_shader_ptr.Get(), NULL, 0);
+  
+
+  D3D11_BUFFER_DESC cbbd;
+  ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+  cbbd.Usage = D3D11_USAGE_DEFAULT;
+  cbbd.ByteWidth = sizeof(cbPerObject);
+  cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+  cbbd.CPUAccessFlags = 0;
+  cbbd.MiscFlags = 0;
+  
+  device->CreateBuffer(&cbbd, NULL, cbPerObjBuf.ReleaseAndGetAddressOf());
+  
+  cbPerObject cbPerObj;
+  
+  cbPerObj.WVP = XMMatrixTranspose(camera.get_WVP());
+  device_context->UpdateSubresource(cbPerObjBuf.Get(), 0, NULL, &cbPerObj, 0, 0);
+  device_context->VSSetConstantBuffers(0, 1, cbPerObjBuf.GetAddressOf());
+
+
   device_context->Draw(vertex_count, 0);
 
   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

@@ -13,6 +13,9 @@
 #include <wrl/client.h>
 #include "stdafx.h"
 
+#include "camera.hpp"
+
+
 namespace gravitysim {
   
 using Microsoft::WRL::ComPtr;
@@ -41,6 +44,10 @@ class Renderer {
   UINT vertex_count               = 3;
   
   ImGuiIO *io;
+
+  ComPtr<ID3D11Buffer> cbPerObjBuf;
+  
+  Camera camera;
 
 public:
   Renderer(HWND hwnd, WNDCLASSEXW &wc);
