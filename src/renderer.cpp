@@ -228,7 +228,7 @@ void Renderer::set_size(UINT width, UINT height) {
   resize_height = height;
 }
 
-void Renderer::RenderFrame(RenderOptions &opts) {
+void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
   // Handle window resize (we don't resize directly in the WM_SIZE handler)
   if (resize_width != 0 && resize_height != 0) {
     CleanupRenderTarget();

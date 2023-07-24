@@ -15,13 +15,21 @@
 
 #include "renderer.hpp"
 
+#include "Keyboard.h"
+#include "Mouse.h"
+#include "StepTimer.hpp"
+
+#include <iostream>
 
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-gravitysim::Renderer *renderer_ptr;
 
-  #include <iostream>
-// Main code
+gravitysim::Renderer *renderer_ptr;
+gravitysim::Camera *camera_ptr;
+DX::StepTimer *timer_ptr;
+
+using namespace DirectX;
+
 int main(int, char**) {
   // Create application window
   //ImGui_ImplWin32_EnableDpiAwareness();
@@ -31,6 +39,13 @@ int main(int, char**) {
   
   gravitysim::Renderer renderer(hwnd, wc);
   renderer_ptr = &renderer;
+  gravitysim::Camera camera(hwnd);
+  camera_ptr = &camera;
+  DX::StepTimer timer;
+  timer_ptr = &timer;
+  
+  Keyboard::KeyboardStateTracker m_keys;
+  Mouse::ButtonStateTracker m_mouseButtons;
   
   if (renderer.InitPipeline()) {
     return 1;
@@ -56,7 +71,26 @@ int main(int, char**) {
               done = true;
       }
       if (done) break;
-      renderer.RenderFrame(opts);
+      renderer.RenderFrame(camera, opts);
+      
+      float elapsed;
+      timer.Tick([&]() {
+        elapsed = timer.GetElapsedSeconds();
+      });
+      
+      auto kb = camera.m_keyboard->GetState();
+      m_keys.Update(kb);
+      if (kb.Escape) {
+        return 0;
+      }
+
+      auto mouse = camera.m_mouse->GetState();
+      m_mouseButtons.Update(mouse);
+      
+      camera.UpdateCamera(m_keys, m_mouseButtons, elapsed);
+      m_keys.Reset();
+      m_mouseButtons.Reset();
+
   }
 
   // Cleanup
@@ -85,6 +119,38 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       return true;
 
   switch (msg) {
+  case WM_ACTIVATEAPP:
+      Keyboard::ProcessMessage(msg, wParam, lParam);
+      Mouse::ProcessMessage(msg, wParam, lParam);
+      break;
+  case WM_ACTIVATE:
+  case WM_INPUT:
+  case WM_MOUSEMOVE:
+  case WM_LBUTTONDOWN:
+  case WM_LBUTTONUP:
+  case WM_RBUTTONDOWN:
+  case WM_RBUTTONUP:
+  case WM_MBUTTONDOWN:
+  case WM_MBUTTONUP:
+  case WM_MOUSEWHEEL:
+  case WM_XBUTTONDOWN:
+  case WM_XBUTTONUP:
+  case WM_MOUSEHOVER:
+      Mouse::ProcessMessage(msg, wParam, lParam);
+      break;
+  case WM_KEYDOWN:
+  case WM_KEYUP:
+  case WM_SYSKEYUP:
+      Keyboard::ProcessMessage(msg, wParam, lParam);
+      break;
+  case WM_SYSKEYDOWN:
+      Keyboard::ProcessMessage(msg, wParam, lParam);
+      if (wParam == VK_RETURN && (lParam & 0x60000000) == 0x20000000) {
+      }
+      break;
+  case WM_MOUSEACTIVATE:
+      // When you click activate the window, we want Mouse to ignore it.
+      return MA_ACTIVATEANDEAT;
   case WM_SIZE:
     if (wParam == SIZE_MINIMIZED)
         return 0;

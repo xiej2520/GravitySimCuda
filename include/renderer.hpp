@@ -46,8 +46,6 @@ class Renderer {
   ImGuiIO *io;
 
   ComPtr<ID3D11Buffer> cbPerObjBuf;
-  
-  Camera camera;
 
 public:
   Renderer(HWND hwnd, WNDCLASSEXW &wc);
@@ -72,7 +70,7 @@ public:
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
   };
-  void RenderFrame(RenderOptions &opts);
+  void RenderFrame(Camera &camera, RenderOptions &opts);
 };
 
   
