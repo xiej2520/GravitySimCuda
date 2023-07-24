@@ -4,6 +4,8 @@
 
 namespace gravitysim {
 
+using namespace DirectX;
+
 Renderer::Renderer(HWND hwnd, WNDCLASSEXW &wc) : hwnd(hwnd), wc(wc) {}
 
 int Renderer::InitPipeline() {
@@ -279,6 +281,12 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                 1000.0f / io->Framerate, io->Framerate);
+
+    ImGui::Text("Camera Position: (%.3f, %.3f, %.3f), Target: (%.3f, %.3f, %.3f)",
+        XMVectorGetX(camera.get_pos()), XMVectorGetY(camera.get_pos()), XMVectorGetZ(camera.get_pos()),
+        XMVectorGetX(camera.get_tgt()), XMVectorGetY(camera.get_tgt()), XMVectorGetZ(camera.get_tgt())
+    );
+
     ImGui::End();
   }
 

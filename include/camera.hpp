@@ -46,10 +46,15 @@ public:
   std::unique_ptr<DirectX::Mouse> m_mouse;
 
   inline DirectX::XMMATRIX &get_WVP() { return WVP; }
+  inline DirectX::XMVECTOR &get_pos() { return cam_pos; }
+  inline DirectX::XMVECTOR &get_tgt() { return cam_tgt; }
+
+  
   Camera(HWND hwnd);
 
   void UpdateCamera(DirectX::Keyboard::KeyboardStateTracker &m_keys,
                     DirectX::Mouse::ButtonStateTracker &m_mouseButtons,
+                    DirectX::Mouse::State &mouse,
                     float elapsed);
 };
 

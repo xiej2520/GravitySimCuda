@@ -30,7 +30,7 @@ Camera::Camera(HWND hwnd) {
 }
 
 void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
-                  Mouse::ButtonStateTracker &m_mouseButtons,
+                  Mouse::ButtonStateTracker &m_mouseButtons, Mouse::State &mouse,
                   float elapsed) {
   
   float speed = 15.0f * elapsed;
@@ -47,6 +47,24 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
   if (m_keys.pressed.S) {
     move_back_forward -= speed;
   }
+  
+  float mouse_speed = 0.001;
+  if (mouse.positionMode == Mouse::MODE_RELATIVE) {
+    cam_yaw += mouse_speed * mouse.x;
+    if (cam_yaw > XM_PI) cam_yaw -= XM_2PI;
+    else if (cam_yaw < -XM_PI) cam_yaw += XM_2PI;
+    cam_pitch += mouse_speed * mouse.y;
+  }
+  
+  if (mouse.leftButton) {
+    m_mouse->SetMode(Mouse::MODE_RELATIVE);
+  }
+
+  cam_pos += move_left_right * cam_right;
+  cam_pos += move_back_forward * cam_forward;
+
+  move_left_right = 0.0f;
+  move_back_forward = 0.0f;
 
   cam_rot = XMMatrixRotationRollPitchYaw(cam_pitch, cam_yaw, 0);
   cam_tgt = XMVector3TransformCoord(DefaultForward, cam_rot);
@@ -55,12 +73,6 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
   cam_right = XMVector3TransformCoord(DefaultRight, cam_rot);
   cam_forward = XMVector3TransformCoord(DefaultForward, cam_rot);
   cam_up = XMVector3Cross(cam_forward, cam_right);
-
-  cam_pos += move_left_right * cam_right;
-  cam_pos += move_back_forward * cam_forward;
-
-  move_left_right = 0.0f;
-  move_back_forward = 0.0f;
 
   cam_tgt = cam_pos + cam_tgt;
 

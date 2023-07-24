@@ -81,13 +81,13 @@ int main(int, char**) {
       auto kb = camera.m_keyboard->GetState();
       m_keys.Update(kb);
       if (kb.Escape) {
-        return 0;
+        camera.m_mouse->SetMode(Mouse::MODE_ABSOLUTE);
       }
 
       auto mouse = camera.m_mouse->GetState();
       m_mouseButtons.Update(mouse);
       
-      camera.UpdateCamera(m_keys, m_mouseButtons, elapsed);
+      camera.UpdateCamera(m_keys, m_mouseButtons, mouse, elapsed);
       m_keys.Reset();
       m_mouseButtons.Reset();
 
