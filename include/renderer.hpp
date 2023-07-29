@@ -36,21 +36,8 @@ class Renderer {
   // Depth
   ComPtr<ID3D11DepthStencilView> depth_stencil_view;
   ComPtr<ID3D11Texture2D> depth_stencil_buf;
-
-  // shaders
-  ComPtr<ID3DBlob> vs_blob_ptr, ps_blob_ptr, error_blob;
-  ComPtr<ID3D11VertexShader> vertex_shader_ptr;
-  ComPtr<ID3D11PixelShader> pixel_shader_ptr;
-  ComPtr<ID3D11InputLayout> input_layout_ptr;
-
-  ComPtr<ID3D11Buffer> vertex_buffer_ptr;
-  UINT vertex_stride              = 3 * sizeof( float );
-  UINT vertex_offset              = 0;
-  UINT vertex_count               = 3;
   
   ImGuiIO *io;
-
-  ComPtr<ID3D11Buffer> cbPerObjBuf;
 
 public:
   Renderer(HWND hwnd, WNDCLASSEXW &wc);
@@ -62,9 +49,6 @@ public:
 
   void CreateRenderTarget();
   void CleanupRenderTarget();
-
-  void CreateShaders();
-  void LoadVertexBuffer();
   
   void set_size(UINT width, UINT height);
 
@@ -76,7 +60,7 @@ public:
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
   };
 
-  void RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3f> positions);
+  void RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3f> positions, float KE, float PE);
 };
 
   

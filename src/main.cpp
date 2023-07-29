@@ -55,20 +55,20 @@ int main(int, char**) {
 
   gravitysim::Renderer::RenderOptions opts;
   
+  /*
   gravitysim::Simulation simulation(
     {1e11f, 1e11f, 1e9f},
     { {0.0f, 0.0f, 0.0f}, {0.0f, 5.0f, 5.0f}, {0.0f, -5.0f, 0.0f} },
     { {0.4f, 0.3f, 0.2f}, {-0.4f, -0.3f, -0.2f}, {0.0f, 0.8f, 0.0f}},
     0.1f
   );
-  /*
+  */
   gravitysim::Simulation simulation(
     {1e11f, 1e11f},
     { {0.0f, 0.0f, 0.0f}, {0.0f, 5.0f, 0.0f} },
     { {0.5f, 0.0f, 0.0f}, {-0.5f, 0.0f, 0.0f} },
-    0.001f
+    0.0001f
   );
-  */
 
 
   // Main loop
@@ -84,7 +84,7 @@ int main(int, char**) {
               done = true;
       }
       if (done) break;
-      renderer.RenderFrame(camera, opts, simulation.get_positions());
+      renderer.RenderFrame(camera, opts, simulation.get_positions(), simulation.get_KE(), simulation.get_PE());
       if (opts.run_simulation) {
         simulation.step();
       }

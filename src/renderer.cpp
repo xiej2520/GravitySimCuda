@@ -17,8 +17,6 @@ int Renderer::InitPipeline() {
     return 1;
   }
 
-  CreateShaders();
-  LoadVertexBuffer();
   return 0;
 }
 
@@ -158,101 +156,12 @@ void Renderer::CleanupRenderTarget() {
   }
 }
 
-void Renderer::CreateShaders() {
-  UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
-#if defined(DEBUG) || defined(_DEBUG)
-  flags |= D3DCOMPILE_DEBUG; // add more debug output
-#endif
-  // COMPILE VERTEX SHADER
-  HRESULT hr = D3DCompileFromFile(
-      L"shaders.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vs_main",
-      "vs_5_0", flags, 0, &vs_blob_ptr, &error_blob);
-  if (FAILED(hr)) {
-    if (error_blob) {
-      OutputDebugStringA((char *)error_blob->GetBufferPointer());
-      error_blob.Reset();
-    }
-    if (vs_blob_ptr) {
-      vs_blob_ptr.Reset();
-    }
-    assert(false);
-  }
-
-  // COMPILE PIXEL SHADER
-  hr = D3DCompileFromFile(L"shaders.hlsl", nullptr,
-                          D3D_COMPILE_STANDARD_FILE_INCLUDE, "ps_main",
-                          "ps_5_0", flags, 0, &ps_blob_ptr, &error_blob);
-  if (FAILED(hr)) {
-    if (error_blob) {
-      OutputDebugStringA((char *)error_blob->GetBufferPointer());
-      error_blob.Reset();
-    }
-    if (ps_blob_ptr) {
-      ps_blob_ptr.Reset();
-    }
-    assert(false);
-  }
-
-  hr = device->CreateVertexShader(vs_blob_ptr->GetBufferPointer(),
-                                  vs_blob_ptr->GetBufferSize(), NULL,
-                                  vertex_shader_ptr.GetAddressOf());
-  assert(SUCCEEDED(hr));
-
-  hr = device->CreatePixelShader(ps_blob_ptr->GetBufferPointer(),
-                                 ps_blob_ptr->GetBufferSize(), NULL,
-                                 pixel_shader_ptr.GetAddressOf());
-  assert(SUCCEEDED(hr));
-
-  D3D11_INPUT_ELEMENT_DESC inputElementDesc[] = {
-      {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA,
-       0},
-      /*
-      { "COL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT,
-      D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "NOR", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-      0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }, {
-      "TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT,
-      D3D11_INPUT_PER_VERTEX_DATA, 0 },
-      */
-  };
-  hr = device->CreateInputLayout(inputElementDesc, ARRAYSIZE(inputElementDesc),
-                                 vs_blob_ptr->GetBufferPointer(),
-                                 vs_blob_ptr->GetBufferSize(),
-                                 input_layout_ptr.GetAddressOf());
-  assert(SUCCEEDED(hr));
-}
-
-void Renderer::LoadVertexBuffer() {
-  /*
-  float vertex_data_array[] = {
-      0.0f,  0.5f,  0.0f, // point at top
-      0.5f,  -0.5f, 0.0f, // point at bottom-right
-      -0.5f, -0.5f, 0.0f, // point at bottom-left
-  };
-  */
-  float vertex_data_array[] = {
-    -0.5f, -0.5f, 0.5,
-    -0.5f, 0.5f, 0.5f,
-    0.5f, 0.5f, 0.5f
-  };
-
-  /*** load mesh data into vertex buffer **/
-  D3D11_BUFFER_DESC vertex_buff_descr = {};
-  vertex_buff_descr.ByteWidth = sizeof(vertex_data_array);
-  vertex_buff_descr.Usage = D3D11_USAGE_DEFAULT;
-  vertex_buff_descr.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-  D3D11_SUBRESOURCE_DATA sr_data = {0};
-  sr_data.pSysMem = vertex_data_array;
-  HRESULT hr =
-      device->CreateBuffer(&vertex_buff_descr, &sr_data, vertex_buffer_ptr.GetAddressOf());
-  assert(SUCCEEDED(hr));
-}
-
 void Renderer::set_size(UINT width, UINT height) {
   resize_width = width;
   resize_height = height;
 }
 
-void Renderer::RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3f> positions) {
+void Renderer::RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3f> positions, float KE, float PE) {
   // Handle window resize (we don't resize directly in the WM_SIZE handler)
   if (resize_width != 0 && resize_height != 0) {
     CleanupRenderTarget();
@@ -306,6 +215,8 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3
     );
     
     ImGui::Text("Yaw: %.3f, Pitch: %.3f, Roll: %.3f", camera.get_yaw(), camera.get_pitch(), camera.get_roll());
+    
+    ImGui::Text("KE: %g, PE: %g, TE: %g", KE, PE, KE + PE);
 
     ImGui::End();
   }
@@ -344,49 +255,10 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3
                              0.0f,
                              1.0f};
   device_context->RSSetViewports(1, &viewport);
-  device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-  device_context->IASetInputLayout(input_layout_ptr.Get());
-  device_context->IASetVertexBuffers(0, 1, vertex_buffer_ptr.GetAddressOf(),
-                                     &vertex_stride, &vertex_offset);
-  device_context->VSSetShader(vertex_shader_ptr.Get(), NULL, 0);
-  device_context->PSSetShader(pixel_shader_ptr.Get(), NULL, 0);
-  
-
-  D3D11_BUFFER_DESC cbbd;
-  ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
-  cbbd.Usage = D3D11_USAGE_DEFAULT;
-  cbbd.ByteWidth = sizeof(cbPerObject);
-  cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-  cbbd.CPUAccessFlags = 0;
-  cbbd.MiscFlags = 0;
-  
-  device->CreateBuffer(&cbbd, NULL, cbPerObjBuf.ReleaseAndGetAddressOf());
-  
-  cbPerObject cbPerObj;
-  
-  cbPerObj.WVP = XMMatrixTranspose(camera.get_WVP());
-  device_context->UpdateSubresource(cbPerObjBuf.Get(), 0, NULL, &cbPerObj, 0, 0);
-  device_context->VSSetConstantBuffers(0, 1, cbPerObjBuf.GetAddressOf());
-
-
-  device_context->Draw(vertex_count, 0);
   
   auto sphere = GeometricPrimitive::CreateSphere(device_context.Get(), opts.body_scale);
   auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get(), opts.body_scale);
   
-  XMMATRIX sphere_trans = XMMatrixTranslation(4, 4, 4);
-  XMMATRIX geosphere_trans = XMMatrixTranslation(4, 0, 4);
-  
-  sphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
-  geosphere->Draw(geosphere_trans, camera.get_view(), camera.get_proj(), Colors::Blue);
-  /*
-  for (int i=0; i<100; i++) {
-    for (int j=0; j<100; j++) {
-      XMMATRIX sphere_trans = XMMatrixTranslation(i, j, 10);
-      geosphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
-    }
-  }
-  */
   for (auto &pos : positions) {
     XMMATRIX trans = XMMatrixTranslation(pos.x, pos.y, pos.z);
     geosphere->Draw(trans, camera.get_view(), camera.get_proj(), Colors::Purple);

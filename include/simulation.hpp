@@ -32,7 +32,7 @@ class Simulation {
   GPUSimData gpu_data;
 
   float time_step = 1;
-  SimulationMethod method = SimulationMethod::GPU_PARTICLE_PARTICLE;
+  SimulationMethod method = SimulationMethod::CPU_PARTICLE_PARTICLE;
   
   static constexpr float G = 6.6743e-11f;
 
@@ -53,17 +53,21 @@ public:
 
   inline std::vector<float> &get_masses() { return masses; }
   inline std::vector<vec3f> &get_positions() { return positions; }
+  
+  float get_KE();
+  float get_PE();
 
   inline void step() {
     switch (method) {
     case SimulationMethod::CPU_PARTICLE_PARTICLE:
+      for (int i=0; i<500; i++)
       calc_accs_cpu_particle_particle();
     break;
     case SimulationMethod::GPU_PARTICLE_PARTICLE:
       transfer_masses_to_gpu();
       transfer_kinematics_to_gpu();
   
-      for (int i=0; i<1; i++)
+      for (int i=0; i<500; i++)
       calc_accs_gpu_particle_particle();
 
       transfer_gpu_kinematics_to_cpu();

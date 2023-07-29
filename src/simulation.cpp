@@ -72,4 +72,28 @@ void Simulation::calc_accs_cpu_particle_particle() {
   transfer_simd_kinematics_to_cpu();
 }
 
+
+float Simulation::get_KE() {
+  float KE = 0.0f;
+  int n = masses.size();
+  for (int i=0; i<n; i++) {
+    XMVECTOR vi = XMLoadFloat3(&vels[i]);
+    KE += 0.5f * masses[i] * XMVectorGetX(XMVector3Dot(vi, vi));
+  }
+  return KE;
+}
+
+float Simulation::get_PE() {
+  float PE = 0.0f;
+  int n = masses.size();
+  for (int i=0; i<n; i++) {
+    for (int j=i+1; j<n; j++) {
+      XMVECTOR pi = XMLoadFloat3(&positions[i]);
+      XMVECTOR pj = XMLoadFloat3(&positions[j]);
+      PE -= G * masses[i] * masses[j] / XMVectorGetX(XMVector3Length(pj - pi));
+    }
+  }
+  return PE;
+}
+
 } // namespace gravitysim
