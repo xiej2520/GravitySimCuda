@@ -61,6 +61,14 @@ int main(int, char**) {
     { {0.4f, 0.3f, 0.2f}, {-0.4f, -0.3f, -0.2f}, {0.0f, 0.8f, 0.0f}},
     0.1f
   );
+  /*
+  gravitysim::Simulation simulation(
+    {1e11f, 1e11f},
+    { {0.0f, 0.0f, 0.0f}, {0.0f, 5.0f, 0.0f} },
+    { {0.5f, 0.0f, 0.0f}, {-0.5f, 0.0f, 0.0f} },
+    0.001f
+  );
+  */
 
 
   // Main loop

@@ -11,43 +11,48 @@ namespace gravitysim {
 
 using namespace DirectX;
 
-void Simulation::transfer_masses_to_gpu() {
-  printf("here\n");
-  //gpu_data.masses.resize(masses.size());
-  printf("here1\n");
-  //thrust::copy(masses.begin(), masses.end(), gpu_data.masses.begin());
-  thrust::host_vector<float> h = masses;
-  printf("here2\n");
-  thrust::device_vector<float> d = masses;
-  printf("here3\n");
-  //gpu_data.masses = masses;
-  printf("here2\n");
+#define checkCudaErrors(val) check_cuda((val), #val, __FILE__, __LINE__)
+void check_cuda(cudaError_t result, char const *const func, const char *const file, int const line) {
+  if (result != 0) {
+    std::cerr << "CUDA error = " << static_cast<uint32_t>(result) << " at " <<
+      file << ":" << line << " '" << func << "' \n";
+    cudaDeviceReset();
+    exit(99);
+  }
 }
 
-void Simulation::transfer_kinematics_to_gpu() {
+__host__ void Simulation::transfer_masses_to_gpu() {
+  gpu_data.masses = masses;
+}
+
+__host__ void Simulation::transfer_kinematics_to_gpu() {
   size_t n = masses.size();
   gpu_data.positions.resize(n);
   gpu_data.vels.resize(n);
-  gpu_data.accs.resize(n);
-  thrust::copy(positions.begin(), positions.end(), reinterpret_cast<XMFLOAT3 *>(thrust::raw_pointer_cast(gpu_data.positions.data())));
-  thrust::copy(vels.begin(), vels.end(), reinterpret_cast<XMFLOAT3 *>(thrust::raw_pointer_cast(gpu_data.vels.data())));
-  thrust::copy(accs.begin(), accs.end(), reinterpret_cast<XMFLOAT3 *>(thrust::raw_pointer_cast(gpu_data.accs.data())));
+  gpu_data.accs.assign(n, make_float3(0));
+
+  float3 *dev_ptr = thrust::raw_pointer_cast(gpu_data.positions.data());
+  vec3f *host_ptr = thrust::raw_pointer_cast(positions.data());
+  cudaMemcpy(dev_ptr, host_ptr, n * sizeof(vec3f), cudaMemcpyHostToDevice);
+
+  dev_ptr = thrust::raw_pointer_cast(gpu_data.vels.data());
+  host_ptr = thrust::raw_pointer_cast(vels.data());
+  cudaMemcpy(dev_ptr, host_ptr, n * sizeof(vec3f), cudaMemcpyHostToDevice);
 }
 
-void Simulation::transfer_gpu_kinematics_to_cpu() {
+__host__ void Simulation::transfer_gpu_kinematics_to_cpu() {
   thrust::copy(gpu_data.positions.begin(), gpu_data.positions.end(), reinterpret_cast<float3 *>(positions.data()));
   thrust::copy(gpu_data.vels.begin(), gpu_data.vels.end(), reinterpret_cast<float3 *>(vels.data()));
-  thrust::copy(gpu_data.accs.begin(), gpu_data.accs.end(), reinterpret_cast<float3 *>(accs.data()));
 }
 
 
-__global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *vels, float3 *accs, int n, float G) {
-  int i = threadIdx.x + blockIdx.x + blockDim.x;
+__global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *accs, size_t n, float G) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x; // thread id
   if (i >= n) return;
   float3 p1 = positions[i];
   
   // maybe use 2d thread but could have race condition
-  for (int j=0; j<n; j++) {
+  for (int j = 0; j < n; j++) {
     if (i == j) continue;
     float3 p2 = positions[j];
     float3 diff = p2 - p1;
@@ -61,35 +66,38 @@ __global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *
   }
 }
 
-void x(std::vector<float> &m) {
-  printf("1\n");
-  thrust::host_vector<float> h = m;
-  printf("2\n");
-  thrust::device_vector<float> g = m;
-  printf("3\n");
+__global__ void gpu_step(float3 *positions, float3 *vels, float3 *accs, size_t n, float time_step) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= n) return;
+    vels[i] += accs[i] * time_step;
+    positions[i] += vels[i] * time_step;
 }
 
-void Simulation::calc_accs_gpu_particle_particle() {
-  x(masses);
-  transfer_masses_to_gpu();
-  printf("transfered masses\n");
-  transfer_kinematics_to_gpu();
-  printf("transfered kinematics\n");
-  
+__host__ void Simulation::calc_accs_gpu_particle_particle() {
   size_t n = gpu_data.masses.size();
-  int block_size = 256;
-  int num_blocks = (n + block_size - 1) / block_size;
+  size_t block_size = 256;
+  size_t num_blocks = (n + block_size - 1) / block_size;
 
-  gpu_particle_particle<<<block_size, num_blocks>>>(thrust::raw_pointer_cast(gpu_data.masses.data()),
+  gpu_data.accs.assign(n, make_float3(0));
+
+  gpu_particle_particle<<<block_size, num_blocks>>>(
+      thrust::raw_pointer_cast(gpu_data.masses.data()),
       thrust::raw_pointer_cast(gpu_data.positions.data()),
-      thrust::raw_pointer_cast(gpu_data.vels.data()),
       thrust::raw_pointer_cast(gpu_data.accs.data()),
       n,
       G
   );
-  printf("finished running\n");
-  transfer_gpu_kinematics_to_cpu();
-  printf("transfered to cpu\n");
+  
+  checkCudaErrors(cudaDeviceSynchronize());
+
+  gpu_step<<<block_size, num_blocks>>>(
+    thrust::raw_pointer_cast(gpu_data.positions.data()),
+    thrust::raw_pointer_cast(gpu_data.vels.data()),
+    thrust::raw_pointer_cast(gpu_data.accs.data()),
+    n,
+    time_step
+  );
+  checkCudaErrors(cudaDeviceSynchronize());
 }
 
 

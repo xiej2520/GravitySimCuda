@@ -1,19 +1,18 @@
 cmake_minimum_required(VERSION 3.8)
 project(GravitySimCuda LANGUAGES CXX CUDA)
 
+set(CMAKE_CUDA_ARCHITECTURES 75)
+
 enable_language(CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-
-# set(CMAKE_CXX_FLAGS "-Wall")
 
 
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED TRUE)
 
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
-
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -32,5 +31,5 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/DirectXTK ${CMAKE_BINARY_DIR}/bin/CMake/Dir
 target_link_libraries(gravity_sim_cuda PRIVATE imgui d3d12.lib DirectXTK)
 
 
-# cmake -DCMAKE_CUDA_ARCHITECTURES=75 -B build
-# cmake --build build
+# cmake -S . -B build -DCMAKE_CUDA_ARCHITECTURES=75
+# cmake --build build --config Release

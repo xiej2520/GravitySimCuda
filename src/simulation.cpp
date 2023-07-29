@@ -20,7 +20,6 @@ Simulation::Simulation(std::vector<float> masses_,
   for (float m : masses) {
     inv_mass.push_back(1.0f / m);
   }
-  accs = std::vector<vec3f>(n, {0, 0, 0});
 }
 
 void Simulation::transfer_kinematics_to_simd() {
@@ -31,7 +30,6 @@ void Simulation::transfer_kinematics_to_simd() {
   for (int i=0; i<n; i++) {
     simd_data.positions[i] = XMLoadFloat3(&positions[i]);
     simd_data.vels[i] = XMLoadFloat3(&vels[i]);
-    simd_data.accs[i] = XMLoadFloat3(&accs[i]);
   }
 }
 
@@ -39,11 +37,9 @@ void Simulation::transfer_simd_kinematics_to_cpu() {
   size_t n = simd_data.positions.size();
   assert(n == positions.size());
   assert(n == vels.size());
-  assert(n == accs.size());
   for (int i=0; i<n; i++) {
     XMStoreFloat3(&positions[i], simd_data.positions[i]);
     XMStoreFloat3(&vels[i], simd_data.vels[i]);
-    XMStoreFloat3(&accs[i], simd_data.accs[i]);
   }
 }
 

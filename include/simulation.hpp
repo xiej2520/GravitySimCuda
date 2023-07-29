@@ -27,7 +27,6 @@ class Simulation {
   std::vector<float> inv_mass;
   std::vector<vec3f> positions;
   std::vector<vec3f> vels;
-  std::vector<vec3f> accs;
   
   SIMDSimData simd_data;
   GPUSimData gpu_data;
@@ -61,7 +60,13 @@ public:
       calc_accs_cpu_particle_particle();
     break;
     case SimulationMethod::GPU_PARTICLE_PARTICLE:
+      transfer_masses_to_gpu();
+      transfer_kinematics_to_gpu();
+  
+      for (int i=0; i<1; i++)
       calc_accs_gpu_particle_particle();
+
+      transfer_gpu_kinematics_to_cpu();
     break;
     }
   }
