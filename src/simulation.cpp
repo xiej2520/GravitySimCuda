@@ -8,48 +8,72 @@ Simulation::Simulation() {}
 
 Simulation::Simulation(float time_step) : time_step(time_step) {}
 
-Simulation::Simulation(std::vector<Body> bodies, std::vector<vec3f> vels,
+Simulation::Simulation(std::vector<float> masses_,
+                       std::vector<vec3f> positions_, std::vector<vec3f> vels_,
                        float time_step)
-    : bodies(std::move(bodies)), vels(std::move(vels)), time_step(time_step) {
+    : masses(std::move(masses_)), positions(std::move(positions_)),
+      vels(std::move(vels_)), time_step(time_step) {
 
-  vels.resize(bodies.size());
-  for (const Body &b : bodies) {
-    inv_mass.push_back(1.0f / b.mass);
+  size_t n = masses.size();
+  positions.resize(n);
+  vels.resize(n);
+  for (float m : masses) {
+    inv_mass.push_back(1.0f / m);
   }
-  accs = std::vector<vec3f>(bodies.size(), {0, 0, 0});
+  accs = std::vector<vec3f>(n, {0, 0, 0});
 }
 
+void Simulation::transfer_kinematics_to_simd() {
+  size_t n = positions.size();
+  simd_data.positions.resize(n);
+  simd_data.vels.resize(n);
+  simd_data.accs.resize(n);
+  for (int i=0; i<n; i++) {
+    simd_data.positions[i] = XMLoadFloat3(&positions[i]);
+    simd_data.vels[i] = XMLoadFloat3(&vels[i]);
+    simd_data.accs[i] = XMLoadFloat3(&accs[i]);
+  }
+}
+
+void Simulation::transfer_simd_kinematics_to_cpu() {
+  size_t n = simd_data.positions.size();
+  assert(n == positions.size());
+  assert(n == vels.size());
+  assert(n == accs.size());
+  for (int i=0; i<n; i++) {
+    XMStoreFloat3(&positions[i], simd_data.positions[i]);
+    XMStoreFloat3(&vels[i], simd_data.vels[i]);
+    XMStoreFloat3(&accs[i], simd_data.accs[i]);
+  }
+}
 
 void Simulation::calc_accs_cpu_particle_particle() {
-  std::fill(accs.begin(), accs.end(), vec3f{0, 0, 0});
-  for (int i=0; i<bodies.size(); i++) {
-    for (int j=i+1; j<bodies.size(); j++) {
-      XMVECTOR p1 = XMLoadFloat3(&bodies[i].pos);
-      XMVECTOR p2 = XMLoadFloat3(&bodies[j].pos);
+  transfer_kinematics_to_simd();
+  std::fill(simd_data.accs.begin(), simd_data.accs.end(), XMVectorZero());
+
+  for (int i = 0; i < masses.size(); i++) {
+    for (int j = i + 1; j < masses.size(); j++) {
+      XMVECTOR p1 = simd_data.positions[i];
+      XMVECTOR p2 = simd_data.positions[j];
       XMVECTOR diff = p2 - p1;
-      
-      float F = G * bodies[i].mass * bodies[j].mass / XMVectorGetX(XMVector3Dot(diff, diff));
-      
+
+      float F =
+          G * masses[i] * masses[j] / XMVectorGetX(XMVector3Dot(diff, diff));
+
       XMVECTOR unit_diff = XMVector3Normalize(diff);
       XMVECTOR F_DIR = F * unit_diff;
-      
-      XMVECTOR a1 = XMLoadFloat3(&accs[i]);
-      XMVECTOR a2 = XMLoadFloat3(&accs[j]);
-      a1 += F_DIR;
-      a2 -= F_DIR;
-      XMStoreFloat3(&accs[i], a1);
-      XMStoreFloat3(&accs[j], a2);
+
+      simd_data.accs[i] += F_DIR;
+      simd_data.accs[j] -= F_DIR;
     }
   }
-  
-  for (int i=0; i<bodies.size(); i++) {
-    XMVECTOR acc = XMLoadFloat3(&accs[i]);
-    acc = XMVectorScale(acc, inv_mass[i]);
-    XMStoreFloat3(&accs[i], acc);
+
+  for (int i = 0; i < masses.size(); i++) {
+    simd_data.accs[i] = XMVectorScale(simd_data.accs[i], inv_mass[i]);
+    simd_data.vels[i] += simd_data.accs[i] * time_step;
+    simd_data.positions[i] += simd_data.vels[i] * time_step;
   }
+  transfer_simd_kinematics_to_cpu();
 }
-
-
-
 
 } // namespace gravitysim

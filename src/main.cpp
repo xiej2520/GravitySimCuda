@@ -1,7 +1,3 @@
-// Dear ImGui: standalone example application for DirectX 11
-// If you are new to Dear ImGui, read documentation from the docs/ folder + read the top of imgui.cpp.
-// Read online: https://github.com/ocornut/imgui/tree/master/docs
-
 #pragma comment(lib, "d3d11.lib")
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -58,6 +54,15 @@ int main(int, char**) {
   renderer.InitImGui();
 
   gravitysim::Renderer::RenderOptions opts;
+  
+  gravitysim::Simulation simulation(
+    {1e11f, 1e11f, 1e9f},
+    { {0.0f, 0.0f, 0.0f}, {0.0f, 5.0f, 5.0f}, {0.0f, -5.0f, 0.0f} },
+    { {0.4f, 0.3f, 0.2f}, {-0.4f, -0.3f, -0.2f}, {0.0f, 0.8f, 0.0f}},
+    0.1f
+  );
+
+
   // Main loop
   bool done = false;
   while (!done) {
@@ -71,7 +76,10 @@ int main(int, char**) {
               done = true;
       }
       if (done) break;
-      renderer.RenderFrame(camera, opts);
+      renderer.RenderFrame(camera, opts, simulation.get_positions());
+      if (opts.run_simulation) {
+        simulation.step();
+      }
       
       float elapsed;
       timer.Tick([&]() {
@@ -87,8 +95,9 @@ int main(int, char**) {
       auto mouse = camera.m_mouse->GetState();
       m_mouseButtons.Update(mouse);
       
-      ImGuiIO &io = ImGui::GetIO();
-      camera.UpdateCamera(m_keys, m_mouseButtons, io.WantCaptureMouse, mouse, elapsed);
+      if (const auto &io = ImGui::GetIO(); !io.WantCaptureMouse) {
+        camera.UpdateCamera(m_keys, m_mouseButtons, io.WantCaptureMouse, mouse, elapsed);
+      }
       m_keys.Reset();
       m_mouseButtons.Reset();
 

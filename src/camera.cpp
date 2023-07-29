@@ -71,6 +71,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
   cam_pos += move_down_up * cam_up;
   
   float mouse_speed = 0.001f;
+  static int last_x = 0, last_y = 0;
   if (mouse.positionMode == Mouse::MODE_RELATIVE) {
     /*
     cam_yaw = normalize_rot(cam_yaw + mouse_speed * mouse.x);
@@ -82,6 +83,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
      */
     cam_yaw = normalize_rot(cam_yaw + mouse_speed * (mouse.x * cos(cam_roll) + mouse.y * sin(cam_roll)));
     cam_pitch = normalize_rot(cam_pitch + mouse_speed * (-mouse.x * sin(cam_roll) + mouse.y * cos(cam_roll)));
+    SetCursorPos(last_x, last_y); // prevent mouse from going over ImGui window
   }
   
   float roll_speed = 2.0f * elapsed;
@@ -96,6 +98,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
   
   if (!capture_mouse) {
     if (mouse.leftButton) {
+      last_x = mouse.x, last_y = mouse.y;
       m_mouse->SetMode(Mouse::MODE_RELATIVE);
     }
   }

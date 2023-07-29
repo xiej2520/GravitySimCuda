@@ -252,7 +252,7 @@ void Renderer::set_size(UINT width, UINT height) {
   resize_height = height;
 }
 
-void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
+void Renderer::RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3f> positions) {
   // Handle window resize (we don't resize directly in the WM_SIZE handler)
   if (resize_width != 0 && resize_height != 0) {
     CleanupRenderTarget();
@@ -279,21 +279,17 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
     static float f = 0.0f;
     static int counter = 0;
 
-    ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and
-                                   // append into it.
+    ImGui::Begin("Gravity Simulation"); // Create window
+    
+    ImGui::Checkbox("Run Simulation", &opts.run_simulation);
 
-    ImGui::Text("This is some useful text."); // Display some text (you can use
-                                              // a format strings too)
     ImGui::Checkbox("Demo Window",
                     &opts.show_demo_window); // Edit bools storing our window
                                              // open/close state
-    ImGui::Checkbox("Another Window", &opts.show_another_window);
 
-    ImGui::SliderFloat("float", &f, 0.0f,
-                       1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::ColorEdit3(
-        "clear color",
-        (float *)&opts.clear_color); // Edit 3 floats representing a color
+    ImGui::SliderFloat("Body scale", &opts.body_scale, 0.1f, 100.0f);
+
+    ImGui::ColorEdit3("Background Color", (float *) &opts.clear_color);
 
     if (ImGui::Button("Button")) // Buttons return true when clicked (most
                                  // widgets return true when edited/activated)
@@ -314,16 +310,15 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
     ImGui::End();
   }
 
-  // 3. Show another simple window.
-  if (opts.show_another_window) {
+  if (opts.run_simulation) {
     ImGui::Begin(
         "Another Window",
-        &opts.show_another_window); // Pass a pointer to our bool variable (the
+        &opts.run_simulation); // Pass a pointer to our bool variable (the
                                     // window will have a closing button that
                                     // will clear the bool when clicked)
     ImGui::Text("Hello from another window!");
     if (ImGui::Button("Close Me"))
-      opts.show_another_window = false;
+      opts.run_simulation = false;
     ImGui::End();
   }
 
@@ -376,19 +371,25 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts) {
 
   device_context->Draw(vertex_count, 0);
   
-  auto sphere = GeometricPrimitive::CreateSphere(device_context.Get());
-  auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get());
+  auto sphere = GeometricPrimitive::CreateSphere(device_context.Get(), opts.body_scale);
+  auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get(), opts.body_scale);
   
   XMMATRIX sphere_trans = XMMatrixTranslation(4, 4, 4);
   XMMATRIX geosphere_trans = XMMatrixTranslation(4, 0, 4);
   
   sphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
   geosphere->Draw(geosphere_trans, camera.get_view(), camera.get_proj(), Colors::Blue);
+  /*
   for (int i=0; i<100; i++) {
     for (int j=0; j<100; j++) {
       XMMATRIX sphere_trans = XMMatrixTranslation(i, j, 10);
-      sphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
+      geosphere->Draw(sphere_trans, camera.get_view(), camera.get_proj(), Colors::Green);
     }
+  }
+  */
+  for (auto &pos : positions) {
+    XMMATRIX trans = XMMatrixTranslation(pos.x, pos.y, pos.z);
+    geosphere->Draw(trans, camera.get_view(), camera.get_proj(), Colors::Purple);
   }
 
   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
