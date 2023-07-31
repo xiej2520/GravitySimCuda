@@ -10,20 +10,19 @@ Simulation::Simulation() {}
 
 Simulation::Simulation(float time_step) : time_step(time_step) {}
 
-Simulation::Simulation(std::vector<float> masses_,
-                       std::vector<vec3f> positions_, std::vector<vec3f> vels_,
-                       float time_step)
+Simulation::Simulation(std::vector<float> masses_, std::vector<vec3f> positions_,
+                       std::vector<vec3f> vels_, float time_step)
     : num_bodies(masses_.size()), masses(std::move(masses_)), positions(std::move(positions_)),
       vels(std::move(vels_)), time_step(time_step) {
 
   positions.resize(num_bodies);
   vels.resize(num_bodies);
   for (float m : masses) {
-    inv_mass.push_back(1.0f / m);
+    mus.push_back(G * m);
+    inv_mu.push_back(1.0f / G / m);
   }
 
   transfer_kinematics_to_simd(); // for initial
-  //switch_method(SimulationMethod::GPU_PARTICLE_PARTICLE);
 }
 
 void Simulation::transfer_kinematics_to_simd() {
@@ -72,7 +71,7 @@ void Simulation::calc_accs_cpu_particle_particle() {
       XMVECTOR p2 = simd_data.positions[j];
       XMVECTOR diff = p2 - p1;
 
-      float acc = G * masses[j] / XMVectorGetX(XMVector3Dot(diff, diff));
+      float acc = mus[j] / XMVectorGetX(XMVector3Dot(diff, diff));
 
       XMVECTOR unit_diff = XMVector3Normalize(diff);
       XMVECTOR acc_dir = acc * unit_diff;
@@ -96,8 +95,7 @@ void Simulation::calc_accs_cpu_particle_particle_halved() {
       XMVECTOR p2 = simd_data.positions[j];
       XMVECTOR diff = p2 - p1;
 
-      float F =
-          G * masses[i] * masses[j] / XMVectorGetX(XMVector3Dot(diff, diff));
+      float F = mus[i] * mus[j] / XMVectorGetX(XMVector3Dot(diff, diff));
 
       XMVECTOR unit_diff = XMVector3Normalize(diff);
       XMVECTOR F_DIR = F * unit_diff;
@@ -108,7 +106,7 @@ void Simulation::calc_accs_cpu_particle_particle_halved() {
   }
 
   for (int i = 0; i < num_bodies; i++) {
-    simd_data.accs[i] = XMVectorScale(simd_data.accs[i], inv_mass[i]);
+    simd_data.accs[i] = XMVectorScale(simd_data.accs[i], inv_mu[i]);
     simd_data.vels[i] += simd_data.accs[i] * time_step;
     simd_data.positions[i] += simd_data.vels[i] * time_step;
   }
@@ -151,7 +149,7 @@ void Simulation::switch_method(SimulationMethod new_method) {
     transfer_kinematics_to_simd();
     break;
   case SimulationMethod::GPU_PARTICLE_PARTICLE:
-    transfer_masses_to_gpu();
+    transfer_mus_to_gpu();
     transfer_kinematics_to_gpu();
     break;
   }
@@ -169,6 +167,35 @@ void Simulation::step() {
       calc_accs_gpu_particle_particle();
     transfer_gpu_positions_to_cpu();
   break;
+  }
+}
+
+void Simulation::set_COM_frame() {
+  // do it on simd
+  switch (method) {
+  case SimulationMethod::GPU_PARTICLE_PARTICLE:
+    transfer_gpu_kinematics_to_cpu();
+    transfer_kinematics_to_simd();
+  break;
+  default: break;
+  }
+
+  auto total_momentum = XMVectorZero();
+  float total_mu;
+  for (size_t i = 0; i < num_bodies; i++) {
+    total_mu += mus[i];
+    total_momentum += mus[i] * simd_data.vels[i];
+  }
+  auto total_vel = total_momentum / total_mu;
+  for (auto &vel : simd_data.vels) {
+    vel -= total_vel;
+  }
+  
+  transfer_simd_kinematics_to_cpu();
+  switch (method) {
+  case SimulationMethod::GPU_PARTICLE_PARTICLE:
+    transfer_simd_kinematics_to_cpu();
+    transfer_kinematics_to_gpu();
   }
 }
 

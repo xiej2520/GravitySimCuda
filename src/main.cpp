@@ -81,7 +81,7 @@ int main(int, char**) {
   masses.push_back(1e14f);
   positions.push_back({0, 15, 5});
   vels.push_back({-1, 0, 0});
-  gravitysim::Simulation simulation(masses, positions, vels, 0.01);
+  gravitysim::Simulation simulation(masses, positions, vels, 0.01f);
 
   // Main loop
   bool done = false;
@@ -96,7 +96,7 @@ int main(int, char**) {
               done = true;
       }
       if (done) break;
-      renderer.RenderFrame(camera, opts, simulation.get_positions(), simulation.get_KE(), simulation.get_PE());
+      renderer.RenderFrame(camera, opts, simulation);
       if (opts.method != simulation.get_method()) {
         simulation.switch_method(opts.method);
       }

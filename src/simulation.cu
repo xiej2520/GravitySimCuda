@@ -21,8 +21,8 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
   }
 }
 
-__host__ void Simulation::transfer_masses_to_gpu() {
-  gpu_data.masses = masses;
+__host__ void Simulation::transfer_mus_to_gpu() {
+  gpu_data.mus = mus;
 }
 
 __host__ void Simulation::transfer_kinematics_to_gpu() {
@@ -48,7 +48,7 @@ __host__ void Simulation::transfer_gpu_positions_to_cpu() {
   thrust::copy(gpu_data.positions.begin(), gpu_data.positions.end(), reinterpret_cast<float3 *>(positions.data()));
 }
 
-__global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *vels, float3 *accs, size_t n, float G, float time_step) {
+__global__ void gpu_particle_particle(float *mus, float3 *positions, float3 *vels, float3 *accs, size_t n, float G, float time_step) {
   int i = blockIdx.x * blockDim.x + threadIdx.x; // thread id
   if (i >= n) return;
   float3 p1 = positions[i];
@@ -59,7 +59,7 @@ __global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *
     float3 p2 = positions[j];
     float3 diff = p2 - p1;
     
-    float acc_magnitude = G * masses[j] / dot(diff, diff);
+    float acc_magnitude = mus[j] / dot(diff, diff);
     
     float3 unit_diff = normalize(diff);
     float3 acc_delta = acc_magnitude * unit_diff;
@@ -82,7 +82,7 @@ __host__ void Simulation::calc_accs_gpu_particle_particle() {
   gpu_data.accs.assign(num_bodies, make_float3(0));
 
   gpu_particle_particle<<<block_size, num_blocks>>>(
-      thrust::raw_pointer_cast(gpu_data.masses.data()),
+      thrust::raw_pointer_cast(gpu_data.mus.data()),
       thrust::raw_pointer_cast(gpu_data.positions.data()),
       thrust::raw_pointer_cast(gpu_data.vels.data()),
       thrust::raw_pointer_cast(gpu_data.accs.data()),

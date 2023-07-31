@@ -23,8 +23,10 @@ struct SIMDSimData {
 
 class Simulation {
   size_t num_bodies;
+  // mu = GM
   std::vector<float> masses;
-  std::vector<float> inv_mass;
+  std::vector<float> mus;
+  std::vector<float> inv_mu;
   std::vector<vec3f> positions;
   std::vector<vec3f> vels;
   
@@ -48,7 +50,7 @@ class Simulation {
   void transfer_simd_kinematics_to_cpu();
   void transfer_simd_positions_to_cpu();
 
-  void transfer_masses_to_gpu();
+  void transfer_mus_to_gpu();
   void transfer_kinematics_to_gpu();
   void transfer_gpu_kinematics_to_cpu();
   void transfer_gpu_positions_to_cpu();
@@ -67,6 +69,7 @@ public:
 
   void switch_method(SimulationMethod new_method);
   void step();
+  void set_COM_frame();
 };
 
 } // namespace gravitysim

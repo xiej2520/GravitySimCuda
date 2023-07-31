@@ -107,28 +107,6 @@ bool Renderer::CreateDeviceD3D(HWND hWnd) {
     return false;
 
   CreateRenderTarget();
-
-  D3D11_TEXTURE2D_DESC depth_stencil_desc;
-  depth_stencil_desc.Width = 2000;
-  depth_stencil_desc.Height = 2000;
-  depth_stencil_desc.MipLevels = 1;
-  depth_stencil_desc.ArraySize = 1;
-  depth_stencil_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-  depth_stencil_desc.SampleDesc.Count = 1;
-  depth_stencil_desc.SampleDesc.Quality = 0;
-  depth_stencil_desc.Usage = D3D11_USAGE_DEFAULT;
-  depth_stencil_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-  depth_stencil_desc.CPUAccessFlags = 0;
-  depth_stencil_desc.MiscFlags = 0;
-
-  device->CreateTexture2D(&depth_stencil_desc, NULL,
-                          depth_stencil_buf.ReleaseAndGetAddressOf());
-  device->CreateDepthStencilView(depth_stencil_buf.Get(), NULL,
-                                 depth_stencil_view.ReleaseAndGetAddressOf());
-
-  device_context->OMSetRenderTargets(1, main_render_tgtview.GetAddressOf(),
-                                     depth_stencil_view.Get());
-
   return true;
 }
 
@@ -151,6 +129,24 @@ void Renderer::CreateRenderTarget() {
   device->CreateRenderTargetView(pBackBuffer, nullptr,
                                  main_render_tgtview.GetAddressOf());
   pBackBuffer->Release();
+
+  D3D11_TEXTURE2D_DESC depth_stencil_desc;
+  depth_stencil_desc.Width = resize_width;
+  depth_stencil_desc.Height = resize_height;
+  depth_stencil_desc.MipLevels = 1;
+  depth_stencil_desc.ArraySize = 1;
+  depth_stencil_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+  depth_stencil_desc.SampleDesc.Count = 1;
+  depth_stencil_desc.SampleDesc.Quality = 0;
+  depth_stencil_desc.Usage = D3D11_USAGE_DEFAULT;
+  depth_stencil_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+  depth_stencil_desc.CPUAccessFlags = 0;
+  depth_stencil_desc.MiscFlags = 0;
+
+  device->CreateTexture2D(&depth_stencil_desc, NULL,
+                          depth_stencil_buf.ReleaseAndGetAddressOf());
+  device->CreateDepthStencilView(depth_stencil_buf.Get(), NULL,
+                                 depth_stencil_view.ReleaseAndGetAddressOf());
 }
 
 void Renderer::CleanupRenderTarget() {
@@ -165,7 +161,7 @@ void Renderer::set_size(UINT width, UINT height) {
 }
 
 void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
-                           std::vector<vec3f> positions, float KE, float PE) {
+                           Simulation &sim) {
   // Handle window resize (we don't resize directly in the WM_SIZE handler)
   if (resize_width != 0 && resize_height != 0) {
     CleanupRenderTarget();
@@ -190,7 +186,6 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
   // to create a named window.
   {
     static float f = 0.0f;
-    static int counter = 0;
 
     ImGui::Begin("Gravity Simulation"); // Create window
 
@@ -203,18 +198,18 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
     ImGui::RadioButton(
         "CPU Particle-Particle", reinterpret_cast<int *>(&opts.method),
         static_cast<int>(SimulationMethod::CPU_PARTICLE_PARTICLE));
+    ImGui::SameLine();
     ImGui::RadioButton(
         "GPU Particle-Particle", reinterpret_cast<int *>(&opts.method),
         static_cast<int>(SimulationMethod::GPU_PARTICLE_PARTICLE));
+
     ImGui::SliderFloat("Body scale", &opts.body_scale, 0.1f, 100.0f);
 
     ImGui::ColorEdit3("Background Color", (float *)&opts.clear_color);
 
-    if (ImGui::Button("Button")) // Buttons return true when clicked (most
-                                 // widgets return true when edited/activated)
-      counter++;
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
+    if (!opts.run_simulation && ImGui::Button("Set center of mass frame")) {
+      sim.set_COM_frame();
+    }
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                 1000.0f / io->Framerate, io->Framerate);
@@ -228,7 +223,7 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
     ImGui::Text("Yaw: %.3f, Pitch: %.3f, Roll: %.3f", camera.get_yaw(),
                 camera.get_pitch(), camera.get_roll());
 
-    ImGui::Text("KE: %g, PE: %g, TE: %g", KE, PE, KE + PE);
+    ImGui::Text("KE: %g, PE: %g, TE: %g", sim.get_KE(), sim.get_KE(), sim.get_KE() + sim.get_PE());
 
     ImGui::End();
   }
@@ -251,14 +246,13 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
       opts.clear_color.x * opts.clear_color.w,
       opts.clear_color.y * opts.clear_color.w,
       opts.clear_color.z * opts.clear_color.w, opts.clear_color.w};
+  device_context->ClearDepthStencilView(depth_stencil_view.Get(),
+                                        D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                                        1.0f, 0);
   device_context->OMSetRenderTargets(1, main_render_tgtview.GetAddressOf(),
                                      depth_stencil_view.Get());
   device_context->ClearRenderTargetView(main_render_tgtview.Get(),
                                         clear_color_with_alpha);
-
-  device_context->ClearDepthStencilView(depth_stencil_view.Get(),
-                                        D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
-                                        1.0f, 0);
 
   RECT winRect;
   GetClientRect(hwnd, &winRect);
@@ -275,7 +269,7 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
   auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get(),
                                                        opts.body_scale, 2);
 
-  for (auto &pos : positions) {
+  for (auto &pos : sim.get_positions()) {
     XMMATRIX trans = XMMatrixTranslation(pos.x, pos.y, pos.z);
     geosphere->Draw(trans, camera.get_view(), camera.get_proj(), Colors::Purple,
                     NULL, false);
