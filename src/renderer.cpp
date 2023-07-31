@@ -167,8 +167,8 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
     CleanupRenderTarget();
     swap_chain->ResizeBuffers(0, resize_width, resize_height,
                               DXGI_FORMAT_UNKNOWN, 0);
-    resize_width = resize_height = 0;
     CreateRenderTarget();
+    resize_width = resize_height = 0;
   }
 
   // Start the Dear ImGui frame
