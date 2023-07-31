@@ -26,9 +26,9 @@ Camera::Camera(HWND hwnd) {
   cam_right = XMVectorSet(1.0f,0.0f,0.0f, 0.0f);
 }
 
-void Camera::set_size(UINT width, UINT height) {
+void Camera::set_size(UINT width, UINT height, float render_dist) {
   float aspect_ratio = static_cast<float>(width) / height;
-  cam_proj = XMMatrixPerspectiveFovLH(0.4f * 3.14f, aspect_ratio, 1.0f, 1000.0f);
+  cam_proj = XMMatrixPerspectiveFovLH(0.4f * 3.14f, aspect_ratio, 1.0f, render_dist);
 }
 
 float normalize_rot(float val) {
@@ -45,7 +45,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
   float move_back_forward = 0.0f;
   float move_down_up = 0.0f;
   
-  float speed = 15.0f * elapsed;
+  float speed = 10 * 15.0f * elapsed;
 
   if (m_keys.pressed.A) {
     move_left_right -= speed;

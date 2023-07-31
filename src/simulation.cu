@@ -26,18 +26,17 @@ __host__ void Simulation::transfer_masses_to_gpu() {
 }
 
 __host__ void Simulation::transfer_kinematics_to_gpu() {
-  size_t n = masses.size();
-  gpu_data.positions.resize(n);
-  gpu_data.vels.resize(n);
-  gpu_data.accs.assign(n, make_float3(0));
+  gpu_data.positions.resize(num_bodies);
+  gpu_data.vels.resize(num_bodies);
+  gpu_data.accs.assign(num_bodies, make_float3(0));
 
   float3 *dev_ptr = thrust::raw_pointer_cast(gpu_data.positions.data());
   vec3f *host_ptr = thrust::raw_pointer_cast(positions.data());
-  cudaMemcpy(dev_ptr, host_ptr, n * sizeof(vec3f), cudaMemcpyHostToDevice);
+  cudaMemcpy(dev_ptr, host_ptr, num_bodies * sizeof(vec3f), cudaMemcpyHostToDevice);
 
   dev_ptr = thrust::raw_pointer_cast(gpu_data.vels.data());
   host_ptr = thrust::raw_pointer_cast(vels.data());
-  cudaMemcpy(dev_ptr, host_ptr, n * sizeof(vec3f), cudaMemcpyHostToDevice);
+  cudaMemcpy(dev_ptr, host_ptr, num_bodies * sizeof(vec3f), cudaMemcpyHostToDevice);
 }
 
 __host__ void Simulation::transfer_gpu_kinematics_to_cpu() {
@@ -45,8 +44,11 @@ __host__ void Simulation::transfer_gpu_kinematics_to_cpu() {
   thrust::copy(gpu_data.vels.begin(), gpu_data.vels.end(), reinterpret_cast<float3 *>(vels.data()));
 }
 
+__host__ void Simulation::transfer_gpu_positions_to_cpu() {
+  thrust::copy(gpu_data.positions.begin(), gpu_data.positions.end(), reinterpret_cast<float3 *>(positions.data()));
+}
 
-__global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *accs, size_t n, float G) {
+__global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *vels, float3 *accs, size_t n, float G, float time_step) {
   int i = blockIdx.x * blockDim.x + threadIdx.x; // thread id
   if (i >= n) return;
   float3 p1 = positions[i];
@@ -64,28 +66,29 @@ __global__ void gpu_particle_particle(float *masses, float3 *positions, float3 *
     
     accs[i] += acc_delta;
   }
+  vels[i] += accs[i] * time_step;
 }
 
-__global__ void gpu_step(float3 *positions, float3 *vels, float3 *accs, size_t n, float time_step) {
+__global__ void gpu_step(float3 *positions, float3 *vels, size_t n, float time_step) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= n) return;
-    vels[i] += accs[i] * time_step;
-    positions[i] += vels[i] * time_step;
+  positions[i] += vels[i] * time_step;
 }
 
 __host__ void Simulation::calc_accs_gpu_particle_particle() {
-  size_t n = gpu_data.masses.size();
-  size_t block_size = 256;
-  size_t num_blocks = (n + block_size - 1) / block_size;
+  unsigned int block_size = 256;
+  unsigned int num_blocks = (num_bodies + block_size - 1) / block_size;
 
-  gpu_data.accs.assign(n, make_float3(0));
+  gpu_data.accs.assign(num_bodies, make_float3(0));
 
   gpu_particle_particle<<<block_size, num_blocks>>>(
       thrust::raw_pointer_cast(gpu_data.masses.data()),
       thrust::raw_pointer_cast(gpu_data.positions.data()),
+      thrust::raw_pointer_cast(gpu_data.vels.data()),
       thrust::raw_pointer_cast(gpu_data.accs.data()),
-      n,
-      G
+      num_bodies,
+      G,
+      time_step
   );
   
   checkCudaErrors(cudaDeviceSynchronize());
@@ -93,8 +96,7 @@ __host__ void Simulation::calc_accs_gpu_particle_particle() {
   gpu_step<<<block_size, num_blocks>>>(
     thrust::raw_pointer_cast(gpu_data.positions.data()),
     thrust::raw_pointer_cast(gpu_data.vels.data()),
-    thrust::raw_pointer_cast(gpu_data.accs.data()),
-    n,
+    num_bodies,
     time_step
   );
   checkCudaErrors(cudaDeviceSynchronize());

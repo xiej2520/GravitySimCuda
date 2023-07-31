@@ -257,11 +257,11 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts, std::vector<vec3
   device_context->RSSetViewports(1, &viewport);
   
   auto sphere = GeometricPrimitive::CreateSphere(device_context.Get(), opts.body_scale);
-  auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get(), opts.body_scale);
+  auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get(), opts.body_scale, 2);
   
   for (auto &pos : positions) {
     XMMATRIX trans = XMMatrixTranslation(pos.x, pos.y, pos.z);
-    geosphere->Draw(trans, camera.get_view(), camera.get_proj(), Colors::Purple);
+    geosphere->Draw(trans, camera.get_view(), camera.get_proj(), Colors::Purple, NULL, false);
   }
 
   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

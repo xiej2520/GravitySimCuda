@@ -54,7 +54,7 @@ public:
   inline float get_pitch() { return cam_pitch; }
   inline float get_roll() { return cam_roll; }
 
-  void set_size(UINT width, UINT height);
+  void set_size(UINT width, UINT height, float render_dist = 10000.0f);
   
   Camera(HWND hwnd);
 

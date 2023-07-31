@@ -63,13 +63,25 @@ int main(int, char**) {
     0.1f
   );
   */
-  gravitysim::Simulation simulation(
-    {1e11f, 1e11f},
-    { {0.0f, 0.0f, 0.0f}, {0.0f, 5.0f, 0.0f} },
-    { {0.5f, 0.0f, 0.0f}, {-0.5f, 0.0f, 0.0f} },
-    0.0001f
-  );
+  //gravitysim::Simulation simulation(
+  //  {1e11f, 1e11f},
+  //  { {0.0f, 0.0f, 0.0f}, {0.0f, 5.0f, 0.0f} },
+  //  { {0.5f, 0.0f, 0.0f}, {-0.5f, 0.0f, 0.0f} },
+  //  0.0001f
+  //);
 
+  int n = 10000;
+  std::vector<float> masses;
+  std::vector<DirectX::XMFLOAT3> positions, vels;
+  for (int i=0; i<n; i++) {
+    masses.push_back(((i + 1) * 10 % 7) * 1e10f);
+    positions.push_back({i % 100 * 1.0f, i / 100 * 1.0f, 0.0f});
+    vels.push_back({i % 25 / 50.0f - 0.5f + 2.0f, i % 50 / 100.0f - 0.5f, i % 75 / 150.0f - 0.5f});
+  }
+  masses.push_back(1e14f);
+  positions.push_back({0, 15, 5});
+  vels.push_back({-1, 0, 0});
+  gravitysim::Simulation simulation(masses, positions, vels, 0.01);
 
   // Main loop
   bool done = false;
