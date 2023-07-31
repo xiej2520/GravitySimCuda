@@ -10,7 +10,7 @@ namespace gravitysim {
 
 using vec3f = DirectX::XMFLOAT3;
 
-enum class SimulationMethod {
+enum class SimulationMethod : int {
   CPU_PARTICLE_PARTICLE,
   GPU_PARTICLE_PARTICLE,
 };
@@ -40,6 +40,8 @@ class Simulation {
   static constexpr float G = 6.6743e-11f;
 
   void calc_accs_cpu_particle_particle();
+  // tries calculating forces, then scaling sum of forces; precision errors
+  void calc_accs_cpu_particle_particle_halved();
   void calc_accs_gpu_particle_particle();
   
   void transfer_kinematics_to_simd();
@@ -56,8 +58,9 @@ public:
   Simulation(float time_step);
   Simulation(std::vector<float> masses, std::vector<vec3f> positions, std::vector<vec3f> vels, float time_step);
 
-  inline std::vector<float> &get_masses() { return masses; }
-  inline std::vector<vec3f> &get_positions() { return positions; }
+  inline SimulationMethod get_method() { return method; }
+  inline const std::vector<float> &get_masses() { return masses; }
+  inline const std::vector<vec3f> &get_positions() { return positions; }
   
   float get_KE();
   float get_PE();

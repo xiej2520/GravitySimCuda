@@ -18,6 +18,9 @@ Simulation::Simulation(std::vector<float> masses_,
 
   positions.resize(num_bodies);
   vels.resize(num_bodies);
+  for (float m : masses) {
+    inv_mass.push_back(1.0f / m);
+  }
 
   transfer_kinematics_to_simd(); // for initial
   //switch_method(SimulationMethod::GPU_PARTICLE_PARTICLE);
@@ -60,6 +63,31 @@ void Simulation::transfer_simd_positions_to_cpu() {
 }
 
 void Simulation::calc_accs_cpu_particle_particle() {
+  std::fill(simd_data.accs.begin(), simd_data.accs.end(), XMVectorZero());
+
+  for (int i = 0; i < num_bodies; i++) {
+    for (int j = 0; j < num_bodies; j++) {
+      if (i == j) continue;
+      XMVECTOR p1 = simd_data.positions[i];
+      XMVECTOR p2 = simd_data.positions[j];
+      XMVECTOR diff = p2 - p1;
+
+      float acc = G * masses[j] / XMVectorGetX(XMVector3Dot(diff, diff));
+
+      XMVECTOR unit_diff = XMVector3Normalize(diff);
+      XMVECTOR acc_dir = acc * unit_diff;
+
+      simd_data.accs[i] += acc_dir;
+    }
+  }
+
+  for (int i = 0; i < num_bodies; i++) {
+    simd_data.vels[i] += simd_data.accs[i] * time_step;
+    simd_data.positions[i] += simd_data.vels[i] * time_step;
+  }
+}
+
+void Simulation::calc_accs_cpu_particle_particle_halved() {
   std::fill(simd_data.accs.begin(), simd_data.accs.end(), XMVectorZero());
 
   for (int i = 0; i < num_bodies; i++) {
@@ -132,7 +160,7 @@ void Simulation::switch_method(SimulationMethod new_method) {
 void Simulation::step() {
   switch (method) {
   case SimulationMethod::CPU_PARTICLE_PARTICLE:
-    for (int i=0; i<1; i++)
+    for (int i=0; i<10; i++)
       calc_accs_cpu_particle_particle();
     transfer_simd_positions_to_cpu();
   break;

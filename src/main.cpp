@@ -70,7 +70,7 @@ int main(int, char**) {
   //  0.0001f
   //);
 
-  int n = 10000;
+  int n = 5000;
   std::vector<float> masses;
   std::vector<DirectX::XMFLOAT3> positions, vels;
   for (int i=0; i<n; i++) {
@@ -97,6 +97,9 @@ int main(int, char**) {
       }
       if (done) break;
       renderer.RenderFrame(camera, opts, simulation.get_positions(), simulation.get_KE(), simulation.get_PE());
+      if (opts.method != simulation.get_method()) {
+        simulation.switch_method(opts.method);
+      }
       if (opts.run_simulation) {
         simulation.step();
       }

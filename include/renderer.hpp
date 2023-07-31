@@ -57,6 +57,7 @@ public:
     bool run_simulation = false;
     bool show_demo_window = true;
     float body_scale = 1.0f;
+    SimulationMethod method = SimulationMethod::CPU_PARTICLE_PARTICLE;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
   };
 
