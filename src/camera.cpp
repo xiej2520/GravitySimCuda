@@ -6,6 +6,7 @@ namespace gravitysim {
 using namespace DirectX;
 
 Camera::Camera(HWND hwnd) {
+  // default options
   cam_pos = XMVectorSet(0.0f, 0.0f, -0.5f, 0.0f);
   cam_tgt = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
   cam_up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
@@ -26,11 +27,13 @@ Camera::Camera(HWND hwnd) {
   cam_right = XMVectorSet(1.0f,0.0f,0.0f, 0.0f);
 }
 
-void Camera::set_size(UINT width, UINT height, float render_dist) {
+void Camera::set_size(float FOV, UINT width, UINT height, float render_dist) {
   float aspect_ratio = static_cast<float>(width) / height;
-  cam_proj = XMMatrixPerspectiveFovLH(0.4f * 3.14f, aspect_ratio, 1.0f, render_dist);
+  cam_proj = XMMatrixPerspectiveFovLH(FOV * 3.14f, aspect_ratio, 1.0f, render_dist);
 }
 
+// normalizes rotations in [-2PI, 2PI] to [-PI, PI]
+// overflow beyond that is not handled
 float normalize_rot(float val) {
   if (val > XM_PI) return val - XM_2PI;
   else if (val < -XM_PI) return val + XM_2PI;
@@ -41,6 +44,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
                   Mouse::ButtonStateTracker &m_mouseButtons, bool capture_mouse,
                   Mouse::State &mouse, float elapsed) {
 
+  // change in position
   float move_left_right = 0.0f;
   float move_back_forward = 0.0f;
   float move_down_up = 0.0f;
@@ -70,6 +74,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
   cam_pos += move_back_forward * cam_forward;
   cam_pos += move_down_up * cam_up;
   
+  // change in camera orientation
   float mouse_speed = 0.001f;
   static int last_x = 0, last_y = 0;
   if (mouse.positionMode == Mouse::MODE_RELATIVE) {
@@ -86,6 +91,7 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
     SetCursorPos(last_x, last_y); // prevent mouse from going over ImGui window
   }
   
+  // roll
   float roll_speed = 2.0f * elapsed;
   
   if (m_keys.pressed.Q) {
@@ -102,6 +108,23 @@ void Camera::UpdateCamera(Keyboard::KeyboardStateTracker &m_keys,
       m_mouse->SetMode(Mouse::MODE_RELATIVE);
     }
   }
+
+  // recalculate camera matrices
+  cam_rot = XMMatrixRotationRollPitchYaw(cam_pitch, cam_yaw, cam_roll);
+  cam_tgt = XMVector3Normalize(XMVector3TransformCoord(DefaultForward, cam_rot));
+  cam_tgt = cam_pos + cam_tgt;
+
+  cam_right = XMVector3TransformCoord(DefaultRight, cam_rot);
+  cam_forward = XMVector3TransformCoord(DefaultForward, cam_rot);
+  cam_up = XMVector3Cross(cam_forward, cam_right);
+
+  cam_view = XMMatrixLookAtLH(cam_pos, cam_tgt, cam_up);
+  
+  WVP = world * cam_view * cam_proj;
+}
+
+void Camera::reset_look() {
+  cam_yaw = cam_pitch = cam_roll = 0.0f;
 
   cam_rot = XMMatrixRotationRollPitchYaw(cam_pitch, cam_yaw, cam_roll);
   cam_tgt = XMVector3Normalize(XMVector3TransformCoord(DefaultForward, cam_rot));

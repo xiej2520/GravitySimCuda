@@ -11,7 +11,7 @@ using namespace DirectX;
 Renderer::Renderer(HWND hwnd, WNDCLASSEXW &wc) : hwnd(hwnd), wc(wc) {}
 
 int Renderer::InitPipeline() {
-  if (!CreateDeviceD3D(hwnd)) {
+  if (CreateDeviceD3D(hwnd)) {
     CleanupDeviceD3D();
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
     return 1;
@@ -96,6 +96,7 @@ bool Renderer::CreateDeviceD3D(HWND hWnd) {
       featureLevelArray, 2, D3D11_SDK_VERSION, &sd,
       swap_chain.ReleaseAndGetAddressOf(), device.ReleaseAndGetAddressOf(),
       &featureLevel, device_context.ReleaseAndGetAddressOf());
+
   if (res == DXGI_ERROR_UNSUPPORTED) // Try high-performance WARP software
                                      // driver if hardware is not available.
     res = D3D11CreateDeviceAndSwapChain(
@@ -103,11 +104,12 @@ bool Renderer::CreateDeviceD3D(HWND hWnd) {
         featureLevelArray, 2, D3D11_SDK_VERSION, &sd,
         swap_chain.ReleaseAndGetAddressOf(), device.ReleaseAndGetAddressOf(),
         &featureLevel, device_context.ReleaseAndGetAddressOf());
+
   if (res != S_OK)
-    return false;
+    return true;
 
   CreateRenderTarget();
-  return true;
+  return false;
 }
 
 void Renderer::CleanupDeviceD3D() {
@@ -176,25 +178,23 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
   ImGui_ImplWin32_NewFrame();
   ImGui::NewFrame();
 
-  // 1. Show the big demo window (Most of the sample code is in
-  // ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear
-  // ImGui!).
+  // Show demo window (See ImGui::ShowDemoWindow())
   if (&opts.show_demo_window)
     ImGui::ShowDemoWindow(&opts.show_demo_window);
 
-  // 2. Show a simple window that we create ourselves. We use a Begin/End pair
-  // to create a named window.
+  // ImGui::Begin and ImGui::End to create a simple window
   {
-    static float f = 0.0f;
+    static float f = 0.0f; // temporary
 
     ImGui::Begin("Gravity Simulation"); // Create window
 
+    // checkbox for run_simulation
     ImGui::Checkbox("Run Simulation", &opts.run_simulation);
 
-    ImGui::Checkbox("Demo Window",
-                    &opts.show_demo_window); // Edit bools storing our window
-                                             // open/close state
+    // checkbox for show demo window
+    ImGui::Checkbox("Demo Window", &opts.show_demo_window);
 
+    // simulation calculation options using radio buttons
     ImGui::RadioButton(
         "CPU Particle-Particle", reinterpret_cast<int *>(&opts.method),
         static_cast<int>(SimulationMethod::CPU_PARTICLE_PARTICLE));
@@ -203,14 +203,17 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
         "GPU Particle-Particle", reinterpret_cast<int *>(&opts.method),
         static_cast<int>(SimulationMethod::GPU_PARTICLE_PARTICLE));
 
+    // scale of the rendered bodies (temporary)
     ImGui::SliderFloat("Body scale", &opts.body_scale, 0.1f, 100.0f);
 
     ImGui::ColorEdit3("Background Color", (float *)&opts.clear_color);
 
-    if (!opts.run_simulation && ImGui::Button("Set center of mass frame")) {
+    // button to set frame to COM frame
+    if (ImGui::Button("Set center of mass frame")) {
       sim.set_COM_frame();
     }
 
+    // show data about simulation
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                 1000.0f / io->Framerate, io->Framerate);
 
@@ -222,18 +225,20 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
 
     ImGui::Text("Yaw: %.3f, Pitch: %.3f, Roll: %.3f", camera.get_yaw(),
                 camera.get_pitch(), camera.get_roll());
+    ImGui::SameLine();
+    if (ImGui::Button("Reset")) camera.reset_look();
 
     ImGui::Text("KE: %g, PE: %g, TE: %g", sim.get_KE(), sim.get_KE(), sim.get_KE() + sim.get_PE());
 
     ImGui::End();
   }
 
+  // example for showing another window
   if (opts.run_simulation) {
     ImGui::Begin(
         "Another Window",
-        &opts.run_simulation); // Pass a pointer to our bool variable (the
-                               // window will have a closing button that
-                               // will clear the bool when clicked)
+        &opts.run_simulation);
+
     ImGui::Text("Hello from another window!");
     if (ImGui::Button("Close Me"))
       opts.run_simulation = false;
@@ -242,6 +247,7 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
 
   // Rendering
   ImGui::Render();
+  // clear the image to the background color
   const float clear_color_with_alpha[4] = {
       opts.clear_color.x * opts.clear_color.w,
       opts.clear_color.y * opts.clear_color.w,
@@ -254,6 +260,7 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
   device_context->ClearRenderTargetView(main_render_tgtview.Get(),
                                         clear_color_with_alpha);
 
+  // set viewport
   RECT winRect;
   GetClientRect(hwnd, &winRect);
   D3D11_VIEWPORT viewport = {0.0f,
@@ -264,8 +271,7 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
                              1.0f};
   device_context->RSSetViewports(1, &viewport);
 
-  auto sphere =
-      GeometricPrimitive::CreateSphere(device_context.Get(), opts.body_scale);
+  // copy paste this for every body
   auto geosphere = GeometricPrimitive::CreateGeoSphere(device_context.Get(),
                                                        opts.body_scale, 2);
 
@@ -274,6 +280,11 @@ void Renderer::RenderFrame(Camera &camera, RenderOptions &opts,
     geosphere->Draw(trans, camera.get_view(), camera.get_proj(), Colors::Purple,
                     NULL, false);
   }
+  auto &pos = sim.get_positions().back();
+  //auto bigsphere = GeometricPrimitive::CreateGeoSphere(device_context.Get(), opts.body_scale * 4, 2);
+  //XMMATRIX trans = XMMatrixTranslation(pos.x, pos.y, pos.z);
+  //bigsphere->Draw(trans, camera.get_view(), camera.get_proj(), Colors::Green,
+  //                NULL, false);
 
   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 

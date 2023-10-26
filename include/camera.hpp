@@ -41,28 +41,49 @@ class Camera {
   float cam_roll = 0.0f;
 
 public:
+  // temporary Keyboard and Mouse control
   std::unique_ptr<DirectX::Keyboard> m_keyboard;
   std::unique_ptr<DirectX::Mouse> m_mouse;
 
+  // World, View, Projection matrix
   inline DirectX::XMMATRIX &get_WVP() { return WVP; }
+
+  // xyz position
   inline DirectX::XMVECTOR &get_pos() { return cam_pos; }
+  
+  // Camera Target
   inline DirectX::XMVECTOR &get_tgt() { return cam_tgt; }
+  
+  // World matrix
   inline DirectX::XMMATRIX &get_world() { return world; }
+  
+  // Camera View matrix
+  // Camera's space, calc from pos, tgt, up
   inline DirectX::XMMATRIX &get_view() { return cam_view; }
+  
+  // Projection matrix
+  // Calc from FOV angle, aspect ratio, near z, far z
   inline DirectX::XMMATRIX &get_proj() { return cam_proj; }
+
   inline float get_yaw() { return cam_yaw; }
   inline float get_pitch() { return cam_pitch; }
   inline float get_roll() { return cam_roll; }
 
-  void set_size(UINT width, UINT height, float render_dist = 10000.0f);
+  // sets projection matrix
+  // FOV in fraction of pi radians (180 deg) (0.4 -> 0.4 * 3.14)
+  void set_size(float FOV, UINT width, UINT height, float render_dist = 10000.0f);
   
   Camera(HWND hwnd);
 
+  // updates camera state based on keyboard and mouse inputs
   void UpdateCamera(DirectX::Keyboard::KeyboardStateTracker &m_keys,
                     DirectX::Mouse::ButtonStateTracker &m_mouseButtons,
                     bool capture_mouse,
                     DirectX::Mouse::State &mouse,
                     float elapsed);
+
+  // resets camera to default options
+  void reset_look();
 };
 
 inline void print_mat(const DirectX::XMMATRIX &mat) {

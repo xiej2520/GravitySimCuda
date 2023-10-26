@@ -38,6 +38,7 @@ void Simulation::transfer_kinematics_to_simd() {
 void Simulation::transfer_simd_kinematics_to_cpu() {
   assert(num_bodies == positions.size());
   assert(num_bodies == vels.size());
+  // move simd position and vel data to cpu
   std::for_each(std::execution::par_unseq, simd_data.positions.begin(), simd_data.positions.end(),
     [&](const XMVECTOR &pos) {
       size_t index = &pos - simd_data.positions.data();
@@ -53,6 +54,7 @@ void Simulation::transfer_simd_kinematics_to_cpu() {
 
 void Simulation::transfer_simd_positions_to_cpu() {
   assert(num_bodies == simd_data.positions.size());
+  // move simd position data to cpu
   std::for_each(std::execution::par_unseq, simd_data.positions.begin(), simd_data.positions.end(),
     [&](const XMVECTOR &pos) {
       size_t index = &pos - simd_data.positions.data();
@@ -64,6 +66,8 @@ void Simulation::transfer_simd_positions_to_cpu() {
 void Simulation::calc_accs_cpu_particle_particle() {
   std::fill(simd_data.accs.begin(), simd_data.accs.end(), XMVectorZero());
 
+  // O(n^2)
+  // calculate acceleration between bodies
   for (int i = 0; i < num_bodies; i++) {
     for (int j = 0; j < num_bodies; j++) {
       if (i == j) continue;
@@ -80,6 +84,7 @@ void Simulation::calc_accs_cpu_particle_particle() {
     }
   }
 
+  // update velocities and positions
   for (int i = 0; i < num_bodies; i++) {
     simd_data.vels[i] += simd_data.accs[i] * time_step;
     simd_data.positions[i] += simd_data.vels[i] * time_step;
@@ -89,6 +94,8 @@ void Simulation::calc_accs_cpu_particle_particle() {
 void Simulation::calc_accs_cpu_particle_particle_halved() {
   std::fill(simd_data.accs.begin(), simd_data.accs.end(), XMVectorZero());
 
+  // calculate two-way forces between bodies, then scale by mass
+  // can have precision issues
   for (int i = 0; i < num_bodies; i++) {
     for (int j = i + 1; j < num_bodies; j++) {
       XMVECTOR p1 = simd_data.positions[i];
@@ -113,6 +120,8 @@ void Simulation::calc_accs_cpu_particle_particle_halved() {
 }
 
 
+// calculate total kinetic energy of system
+// almost certainly has precision issues
 float Simulation::get_KE() {
   float KE = 0.0f;
   for (int i = 0; i < num_bodies; i++) {
@@ -122,6 +131,8 @@ float Simulation::get_KE() {
   return KE;
 }
 
+// calculate total potential energy of system
+// almost certainly has precision issues
 float Simulation::get_PE() {
   float PE = 0.0f;
   for (int i = 0; i < num_bodies; i++) {
@@ -180,17 +191,21 @@ void Simulation::set_COM_frame() {
   default: break;
   }
 
+  // calculate total momentum of system
   auto total_momentum = XMVectorZero();
   float total_mu;
   for (size_t i = 0; i < num_bodies; i++) {
     total_mu += mus[i];
     total_momentum += mus[i] * simd_data.vels[i];
   }
+  
+  // calculate total velocity, subtract from all bodies
   auto total_vel = total_momentum / total_mu;
   for (auto &vel : simd_data.vels) {
     vel -= total_vel;
   }
   
+  // transfer data back
   transfer_simd_kinematics_to_cpu();
   switch (method) {
   case SimulationMethod::GPU_PARTICLE_PARTICLE:

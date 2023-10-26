@@ -31,7 +31,7 @@ int main(int, char**) {
   //ImGui_ImplWin32_EnableDpiAwareness();
   WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
   ::RegisterClassExW(&wc);
-  HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX11 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
+  HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Gravity Simulation", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
   
   gravitysim::Renderer renderer(hwnd, wc);
   renderer_ptr = &renderer;
@@ -70,7 +70,7 @@ int main(int, char**) {
   //  0.0001f
   //);
 
-  int n = 5000;
+  int n = 6000;
   std::vector<float> masses;
   std::vector<DirectX::XMFLOAT3> positions, vels;
   for (int i=0; i<n; i++) {
@@ -79,7 +79,7 @@ int main(int, char**) {
     vels.push_back({i % 25 / 50.0f - 0.5f + 2.0f, i % 50 / 100.0f - 0.5f, i % 75 / 150.0f - 0.5f});
   }
   masses.push_back(1e14f);
-  positions.push_back({0, 15, 5});
+  positions.push_back({0, 15, 50});
   vels.push_back({-1, 0, 0});
   gravitysim::Simulation simulation(masses, positions, vels, 0.01f);
 
@@ -189,7 +189,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         return 0;
     // queue resize
     renderer_ptr->set_size(static_cast<UINT>(LOWORD(lParam)), static_cast<UINT>(HIWORD(lParam)));
-    camera_ptr->set_size(static_cast<UINT>(LOWORD(lParam)), static_cast<UINT>(HIWORD(lParam)));
+    camera_ptr->set_size(0.4f, static_cast<UINT>(LOWORD(lParam)), static_cast<UINT>(HIWORD(lParam)));
     return 0;
   case WM_SYSCOMMAND:
     if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
