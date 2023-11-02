@@ -44,7 +44,7 @@ class Simulation {
   float dist_scale = 1.0f;
   float mass_scale = 1.0f;
   
-  static constexpr float G = 6.6743e-11f;
+  float G = 6.6743e-11f;
 
   // steps simulation forward, updates data in simd_data
   void calc_accs_cpu_particle_particle();
@@ -76,9 +76,11 @@ public:
   inline SimulationMethod get_method() { return method; }
   inline const std::vector<float> &get_masses() { return masses; }
   inline const std::vector<vec3f> &get_positions() { return positions; }
+  inline const std::vector<vec3f> &get_vels() { return vels; }
   
   float get_KE();
   float get_PE();
+  void set_G(float G);
 
   // sets simulation method and moves data
   void switch_method(SimulationMethod new_method);

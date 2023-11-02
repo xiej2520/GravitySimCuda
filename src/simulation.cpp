@@ -145,6 +145,10 @@ float Simulation::get_PE() {
   return PE;
 }
 
+void Simulation::set_G(float G) {
+  this->G = G;
+}
+
 void Simulation::switch_method(SimulationMethod new_method) {
   switch (method) {
   case SimulationMethod::CPU_PARTICLE_PARTICLE:
@@ -193,7 +197,7 @@ void Simulation::set_COM_frame() {
 
   // calculate total momentum of system
   auto total_momentum = XMVectorZero();
-  float total_mu;
+  float total_mu = 0;
   for (size_t i = 0; i < num_bodies; i++) {
     total_mu += mus[i];
     total_momentum += mus[i] * simd_data.vels[i];
